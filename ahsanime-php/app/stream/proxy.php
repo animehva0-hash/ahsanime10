@@ -54,13 +54,31 @@ function handle_proxy(array $sp, ?string $range): array
     $url = $scheme . '://' . $host . $path . $query;
     $effectiveRef = $inheritedRef !== '' ? $inheritedRef : (http_referer_for($host) ?: http_default_referer());
 
-    try {
-        $headers = http_upstream_headers($effectiveRef, $range);
-        $upstream = stream_http_request('GET', $url, $headers, null, 20);
-    } catch (Throwable $e) {
-        return json_response(['ok' => false, 'error' => 'upstream ' . $e->getMessage()], 502);
-    }
+    $headers = http_upstream_headers($effectiveRef, $range);
 
+    // Direct first (fast path). If the deployed server's IP is geo-blocked
+    // (common on shared hosts), fall back to a few free HTTP proxies.
+    $upstream = null;
+    try {
+        $upstream = stream_http_request('GET', $url, $headers, null, 10);
+    } catch (Throwable $e) {
+        $upstream = null;
+    }
+    if (!$upstream || $upstream['status'] < 200 || $upstream['status'] >= 300) {
+        if (function_exists('proxy_pool_get')) {
+            foreach (proxy_pool_get(4) as $proxy) {
+                try {
+                    $upstream = stream_http_request('GET', $url, $headers, null, 8, true, $proxy);
+                    if ($upstream['status'] >= 200 && $upstream['status'] < 300) break;
+                } catch (Throwable $e) {
+                    $upstream = null;
+                }
+            }
+        }
+    }
+    if (!$upstream) {
+        return json_response(['ok' => false, 'error' => 'upstream unreachable'], 502);
+    }
     if ($upstream['status'] < 200 || $upstream['status'] >= 300) {
         return json_response(['ok' => false, 'error' => "upstream {$upstream['status']}"], 502);
     }
