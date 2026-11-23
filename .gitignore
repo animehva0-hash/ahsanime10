@@ -1,6 +1,5 @@
 node_modules/
 .next/
 *.log
-.env
 .env.save
 secrets.local.json
