@@ -29,7 +29,17 @@ require __DIR__ . '/app/stream/gemini.php';
 require __DIR__ . '/app/stream/translate.php';
 require __DIR__ . '/app/stream/proxy.php';
 
-// ---- request parsing -------------------------------------------------------
+// CORS preflight (mobile browsers / hls.js) — answer OPTIONS early.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Range, Accept, Origin, Referer');
+    header('Access-Control-Max-Age: 86400');
+    http_response_code(204);
+    exit;
+}
+// Global CORS header for all responses.
+header('Access-Control-Allow-Origin: *');
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
