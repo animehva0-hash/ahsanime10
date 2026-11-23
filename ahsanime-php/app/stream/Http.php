@@ -220,7 +220,7 @@ function stream_http_request_retry(
     int $proxyTries = 3,
 ): array {
     try {
-        $res = stream_http_request($method, $url, $headers, $body, $timeout);
+        $res = stream_http_request($method, $url, $headers, $body, 8);
         if ($res['status'] < 500) return $res; // 2xx/3xx/4xx: direct answer stands
         $last = $res;
     } catch (Throwable $e) {
@@ -229,9 +229,9 @@ function stream_http_request_retry(
 
     if (!function_exists('proxy_pool_get')) return $last;
 
-    foreach (proxy_pool_get($proxyTries + 2) as $proxy) {
+    foreach (array_slice(proxy_pool_get(6), 0, 2) as $proxy) {
         try {
-            $res = stream_http_request($method, $url, $headers, $body, $timeout, true, $proxy);
+            $res = stream_http_request($method, $url, $headers, $body, 5, true, $proxy);
             if ($res['status'] >= 200 && $res['status'] < 400) return $res;
         } catch (Throwable $e) {
             continue; // dead proxy, try next

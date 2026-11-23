@@ -66,10 +66,10 @@ function handle_proxy(array $sp, ?string $range): array
     }
     if (!$upstream || $upstream['status'] < 200 || $upstream['status'] >= 300) {
         if (function_exists('proxy_pool_get')) {
-            foreach (proxy_pool_get(4) as $proxy) {
+            foreach (array_slice(proxy_pool_get(6), 0, 2) as $proxy) {
                 try {
-                    $upstream = stream_http_request('GET', $url, $headers, null, 8, true, $proxy);
-                    if ($upstream['status'] >= 200 && $upstream['status'] < 300) break;
+                    $upstream = stream_http_request('GET', $url, $headers, null, 5, true, $proxy);
+                    if ($upstream && $upstream['status'] >= 200 && $upstream['status'] < 300) break;
                 } catch (Throwable $e) {
                     $upstream = null;
                 }
