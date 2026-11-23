@@ -89,7 +89,20 @@
     var currentServer = 0;
     var sessionId = newSessionId();
     var translateToken = 0;
+    var lastFailedLang = null;
+    var lastFailedLabel = null;
     var translating = false;
+    var heartbeatTimer = null;
+    function startHeartbeat() {
+      if (heartbeatTimer) return;
+      heartbeatTimer = setInterval(function () {
+        if (!animeId || !ep || !sessionId) return;
+        fetch("/api/stream/subtitle/heartbeat?sessionId=" + encodeURIComponent(sessionId) + "&animeId=" + animeId + "&ep=" + ep).catch(function () {});
+      }, 30000);
+    }
+    function stopHeartbeat() {
+      if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    }
 
     // Translation state (per server).
     var srcCues = [];          // English source cues (parsed once per server)
@@ -462,7 +475,9 @@
         .catch(function (err) {
           if (myToken !== translateToken) return;
           translating = false;
-          setLangNote(err && err.message ? err.message : "Translation failed.");
+          lastFailedLang = langCode;
+          lastFailedLabel = langLabel;
+          setLangNote((err && err.message ? err.message : "Translation failed.") + " — tap to retry");
         });
     }
 
@@ -493,7 +508,9 @@
         })
         .catch(function (err) {
           if (myToken !== translateToken) return;
-          setLangNote(err && err.message ? err.message : "Translation request failed.");
+          setLangNote((err && err.message ? err.message : "Translation request failed.") + " — tap to retry");
+          lastFailedLang = langCode;
+          lastFailedLabel = langLabel;
         });
     }
 
@@ -593,8 +610,8 @@
       toggle();
       if (!root.contains(document.activeElement)) root.focus({ preventScroll: true });
     });
-    video.addEventListener("play", function () { state(); tick(); cancelAnimationFrame(capRaf); capLoop(); wake(); });
-    video.addEventListener("pause", function () { state(); cancelAnimationFrame(raf); cancelAnimationFrame(capRaf); sync(); paintCaptions(); wake(); });
+    video.addEventListener("play", function () { state(); tick(); cancelAnimationFrame(capRaf); capLoop(); wake(); startHeartbeat(); });
+    video.addEventListener("pause", function () { state(); cancelAnimationFrame(raf); cancelAnimationFrame(capRaf); sync(); paintCaptions(); wake(); stopHeartbeat(); });
     video.addEventListener("loadedmetadata", function () { meta(); });
     video.addEventListener("progress", buffered);
     video.addEventListener("seeked", function () { sync(); buffered(); paintCaptions(); });
@@ -676,11 +693,19 @@
       document.addEventListener("webkitfullscreenchange", fsSync);
     }
     if (serverSel) serverSel.addEventListener("change", function () { loadServer(parseInt(serverSel.value, 10) || 0); });
-    if (langSel) langSel.addEventListener("change", function () {
-      var code = langSel.value;
-      var label = langSel.options[langSel.selectedIndex] ? langSel.options[langSel.selectedIndex].text : code;
-      doTranslate(code, label);
-    });
+     if (langSel) langSel.addEventListener("change", function () {
+       var code = langSel.value;
+       var label = langSel.options[langSel.selectedIndex] ? langSel.options[langSel.selectedIndex].text : code;
+       doTranslate(code, label);
+     });
+     if (langNote) langNote.addEventListener("click", function () {
+       if (lastFailedLang) {
+         var code = lastFailedLang;
+         var label = lastFailedLabel || code;
+         lastFailedLang = null;
+         doTranslate(code, label);
+       }
+     });
 
     ["pointermove", "focusin", "focusout"].forEach(function (t) { root.addEventListener(t, wake); });
     root.addEventListener("pointerleave", function () {

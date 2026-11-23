@@ -220,7 +220,23 @@ if (preg_match('#^/api/stream/subtitle$#', $path)) {
     }
 }
 
-// ---- page routes -----------------------------------------------------------
+// Heartbeat: keeps a viewing session's subtitle cache alive while the user watches.
+// Client pings every ~30s; absence for >10 min lets the cache expire naturally.
+if (preg_match('#^/api/stream/subtitle/heartbeat$#', $path)) {
+    header('Content-Type: application/json; charset=utf-8');
+    $sid = trim((string) ($_GET['sessionId'] ?? ''));
+    $aid = trim((string) ($_GET['animeId'] ?? ''));
+    $ep = trim((string) ($_GET['ep'] ?? ''));
+    // Touch the session cache files (if any) to extend their TTL.
+    if ($sid !== '' && $aid !== '' && $ep !== '') {
+        $dir = stream_state_dir();
+        foreach (glob($dir . '/' . stream_key('ss', $sid, $aid, $ep, '') . '*.json') as $f) {
+            @touch($f);
+        }
+    }
+    echo json_encode(['ok' => true, 'ts' => time()]);
+    exit;
+}
 
 require __DIR__ . '/app/controllers/pages.php';
 
