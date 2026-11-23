@@ -193,7 +193,14 @@
 
       var isMp4 = /\.mp4($|\?)/i.test(server.hls);
       if (window.Hls && window.Hls.isSupported() && !isMp4) {
-        hls = new window.Hls({ enableWorker: true, lowLatencyMode: true });
+         hls = new window.Hls({
+           enableWorker: true,
+           lowLatencyMode: false,
+           backBufferLength: 30,
+           maxBufferLength: 30,
+           maxMaxBufferLength: 60,
+           maxBufferHole: 0.5,
+         });
         hls.loadSource(src);
         hls.attachMedia(video);
         hls.on(window.Hls.Events.MANIFEST_PARSED, function () {
@@ -201,13 +208,16 @@
           var pr = video.play();
           if (pr && pr.catch) pr.catch(function () {});
         });
-        hls.on(window.Hls.Events.ERROR, function (evt, data) {
-          if (data && data.fatal) {
-            if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) setStatus("Network error loading stream…");
-            else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) setStatus("Media error, trying next server…");
-            else setStatus("Playback error.");
-          }
-        });
+         hls.on(window.Hls.Events.ERROR, function (evt, data) {
+           if (!data) return;
+           if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
+             if (data.fatal) { setStatus("Network error loading stream…"); try { hls.startLoad(); } catch (e) {} }
+           } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
+             if (data.fatal) { setStatus("Media error, recovering…"); try { hls.recoverMediaError(); } catch (e) {} }
+           } else {
+             if (data.fatal) setStatus("Playback error.");
+           }
+         });
       } else {
         // Native HLS (Safari) or direct MP4.
         video.src = src;
