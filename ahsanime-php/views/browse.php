@@ -14,6 +14,14 @@ include __DIR__ . '/partials/header.php';
 $baseQs = http_build_query(array_filter($q, static fn($v) => $v !== '' && $v !== null));
 ?>
 <div class="shell py-6 animate-fade-in">
+  <!-- Mobile search (desktop already has it in the header) -->
+  <form action="/search" method="get" class="mb-4 flex items-center gap-2 lg:hidden">
+    <div class="relative flex-1">
+      <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input name="q" value="<?= e($q ?? '') ?>" placeholder="Search anime..." class="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-[#ff8a00]/60 focus:bg-white/10" />
+    </div>
+    <button type="submit" class="rounded-full bg-[#ff8a00] px-4 py-2.5 text-sm font-semibold text-black">Go</button>
+  </form>
   <div class="mb-6">
     <h1 class="font-display text-2xl font-bold tracking-tight text-white sm:text-3xl"><?= e($heading ?? 'Browse') ?></h1>
     <?php if (!empty($blurb)): ?><p class="mt-2 max-w-2xl text-sm text-zinc-400"><?= e($blurb) ?></p><?php endif; ?>
